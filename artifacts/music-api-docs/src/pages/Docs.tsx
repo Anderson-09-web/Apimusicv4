@@ -417,7 +417,7 @@ async def play(interaction: discord.Interaction, query: str):
           <section id="configuration" className="scroll-mt-32">
             <h2 className="text-2xl font-bold text-white mb-6 pb-2 border-b border-border">Server Configuration</h2>
             <p className="text-muted-foreground mb-6">
-              When hosting the API server yourself, configure these environment variables.
+              Configure these environment variables to set up the API server.
             </p>
             
             <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -459,6 +459,10 @@ async def play(interaction: discord.Interaction, query: str):
               </table>
             </div>
           </section>
+
+          <footer className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
+            Hecho por Blocker X
+          </footer>
 
         </div>
       </main>
