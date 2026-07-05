@@ -37,3 +37,14 @@ services:
         sync: false
       - key: LAVALINK_SECURE
         value: "true"
+
+  - type: web
+    name: music-api-docs
+    runtime: static
+    plan: free
+    buildCommand: pnpm install && BASE_PATH=/ PORT=5000 pnpm --filter @workspace/music-api-docs run build
+    staticPublishPath: ./artifacts/music-api-docs/dist/public
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
