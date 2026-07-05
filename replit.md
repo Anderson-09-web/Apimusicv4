@@ -1,36 +1,55 @@
-# [Project name]
+# Discord Music API
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A production-ready REST API for Discord music bots, built on **Node.js 24 + TypeScript** with **Lavalink v4** as the audio engine. Your Discord bot sends HTTP requests — this API handles playback, queueing, search, caching and reconnection.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (dev mode, auto-rebuild)
+- `pnpm --filter @workspace/music-api-docs run dev` — run the documentation web app
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
+- `docker compose up -d` — start API + Lavalink v4 together
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- API: Express 5 (artifacts/api-server)
+- Docs: React + Vite (artifacts/music-api-docs)
+- Audio: Lavalink v4 (direct REST + WebSocket client)
+- Cache: node-cache (in-memory, configurable TTL)
+- Rate limiting: express-rate-limit
+- Validation: Zod (via @workspace/api-zod)
+- Logging: Pino
+- API codegen: Orval (from OpenAPI spec in lib/api-spec/)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — OpenAPI spec (source of truth for all contracts)
+- `lib/api-zod/src/generated/` — generated Zod validation schemas (server-side)
+- `lib/api-client-react/src/generated/` — generated React Query hooks (docs/frontend)
+- `artifacts/api-server/src/lib/lavalink.ts` — Lavalink v4 REST + WebSocket client
+- `artifacts/api-server/src/lib/playerManager.ts` — per-guild queue and player state
+- `artifacts/api-server/src/lib/cache.ts` — search cache
+- `artifacts/api-server/src/config.ts` — all env var config
+- `artifacts/api-server/src/routes/music/` — all music endpoints
+- `lavalink/application.yml` — Lavalink node configuration
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- **Direct Lavalink v4 REST + WebSocket** instead of Shoukaku: standalone API servers don't have a Discord.js client, so a custom low-level client is more appropriate than a Discord-aware library.
+- **Voice relay pattern**: Discord bot must relay VOICE_STATE_UPDATE + VOICE_SERVER_UPDATE to `POST /api/music/guilds/:guildId/voice`. The API server never connects to Discord directly.
+- **In-memory player state**: player state lives in-process (Map). If you need multi-instance support, move it to Redis.
+- **Fail-fast in production**: `validateConfig()` throws if `API_KEY` or `DISCORD_BOT_USER_ID` are missing when `NODE_ENV=production`.
+- **Non-blocking Lavalink connect**: server starts accepting requests immediately; Lavalink reconnects in background with exponential backoff.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+A REST API that Discord music bots call to delegate all audio playback. Supports:
+- 17 endpoints: search, play, playlist, pause, resume, skip, stop, volume, loop, shuffle, queue, clear, now-playing, status, disconnect, voice relay, node status
+- Sources: YouTube, SoundCloud, Spotify (via LavaSrc plugin), any Lavalink-compatible URL
+- Multi-bot, multi-guild: fully isolated player state per guild ID
+- Production features: API key auth, rate limiting, search cache, auto-reconnect, structured logging
 
 ## User preferences
 
@@ -38,8 +57,13 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Lavalink v4 requires `DISCORD_BOT_USER_ID` in the WebSocket handshake — set it or WS auth will fail.
+- Bot must call `POST /voice` BEFORE calling `POST /play` — otherwise Lavalink can't connect to the voice channel.
+- The `lavalink/application.yml` includes LavaSrc and YouTube plugin configs — add Spotify `clientId`/`clientSecret` for Spotify support.
+- In development, missing `API_KEY` only warns (not throws) so the server starts without auth.
+- Search cache key includes `limit` to avoid poisoning higher-limit results with cached low-limit results.
 
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- See `README.md` for full API reference and integration examples

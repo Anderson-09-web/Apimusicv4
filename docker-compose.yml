@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  # ─── Discord Music API ───────────────────────────────────────────────────────
+  music-api:
+    build: .
+    container_name: discord-music-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      API_KEY: ${API_KEY}
+      DISCORD_BOT_USER_ID: ${DISCORD_BOT_USER_ID}
+      CLIENT_NAME: discord-music-api/1.0
+      LAVALINK_HOST: lavalink
+      LAVALINK_PORT: 2333
+      LAVALINK_PASSWORD: ${LAVALINK_PASSWORD:-youshallnotpass}
+      LAVALINK_SECURE: "false"
+      LAVALINK_RECONNECT_INTERVAL: "5000"
+      LAVALINK_RECONNECT_MAX_RETRIES: "0"
+      CACHE_TTL: "300"
+      CACHE_MAX_KEYS: "500"
+      RATE_LIMIT_WINDOW_MS: "60000"
+      RATE_LIMIT_MAX: "100"
+    depends_on:
+      lavalink:
+        condition: service_healthy
+    networks:
+      - music-net
+
+  # ─── Lavalink v4 ─────────────────────────────────────────────────────────────
+  lavalink:
+    image: ghcr.io/lavalink-devs/lavalink:4
+    container_name: lavalink
+    restart: unless-stopped
+    environment:
+      - _JAVA_OPTIONS=-Xmx512m
+      - SERVER_PORT=2333
+      - LAVALINK_SERVER_PASSWORD=${LAVALINK_PASSWORD:-youshallnotpass}
+    volumes:
+      - ./lavalink/application.yml:/opt/Lavalink/application.yml:ro
+      - ./lavalink/plugins:/opt/Lavalink/plugins
+    ports:
+      - "2333:2333"
+    networks:
+      - music-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2333/v4/info", "-H", "Authorization: ${LAVALINK_PASSWORD:-youshallnotpass}"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  music-net:
+    driver: bridge

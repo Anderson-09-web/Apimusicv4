@@ -2,14 +2,21 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 1.0.0
+  description: Discord Music API — Manages music playback via Lavalink v4
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: search
+    description: Music search
+  - name: player
+    description: Player controls
+  - name: queue
+    description: Queue management
+
 paths:
   /healthz:
     get:
@@ -24,7 +31,552 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /music/search:
+    get:
+      operationId: searchTracks
+      tags: [search]
+      summary: Search for tracks
+      description: Search for tracks by query or URL across supported sources
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query or direct URL (YouTube, Spotify, SoundCloud)
+        - name: source
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [youtube, soundcloud, spotify, ytsearch, scsearch]
+            default: ytsearch
+          description: Search source
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+          description: Maximum number of results
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/guilds/{guildId}/play:
+    post:
+      operationId: playTrack
+      tags: [player]
+      summary: Play a track or URL
+      description: Play a track by search query, URL, or encoded track. Joins the voice channel if not connected.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlayInput"
+      responses:
+        "200":
+          description: Track queued or now playing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No tracks found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/guilds/{guildId}/playlist:
+    post:
+      operationId: playPlaylist
+      tags: [player]
+      summary: Play a playlist
+      description: Load and queue an entire playlist from a URL
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaylistInput"
+      responses:
+        "200":
+          description: Playlist queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaylistResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/guilds/{guildId}/pause:
+    post:
+      operationId: pausePlayer
+      tags: [player]
+      summary: Pause playback
+      description: Pause the current track
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      responses:
+        "200":
+          description: Paused
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerActionResponse"
+        "400":
+          description: Player not active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/guilds/{guildId}/resume:
+    post:
+      operationId: resumePlayer
+      tags: [player]
+      summary: Resume playback
+      description: Resume a paused track
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      responses:
+        "200":
+          description: Resumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerActionResponse"
+        "400":
+          description: Player not active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/guilds/{guildId}/skip:
+    post:
+      operationId: skipTrack
+      tags: [player]
+      summary: Skip current track
+      description: Skip the current track and play the next one in queue
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      responses:
+        "200":
+          description: Skipped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkipResponse"
+        "400":
+          description: Player not active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/guilds/{guildId}/stop:
+    post:
+      operationId: stopPlayer
+      tags: [player]
+      summary: Stop playback
+      description: Stop playback and clear the queue
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      responses:
+        "200":
+          description: Stopped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerActionResponse"
+        "400":
+          description: Player not active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/guilds/{guildId}/volume:
+    patch:
+      operationId: setVolume
+      tags: [player]
+      summary: Set volume
+      description: Adjust the playback volume (0-1000)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VolumeInput"
+      responses:
+        "200":
+          description: Volume updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerActionResponse"
+        "400":
+          description: Invalid volume
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/guilds/{guildId}/loop:
+    patch:
+      operationId: setLoop
+      tags: [player]
+      summary: Set loop mode
+      description: Toggle loop mode (none, track, queue)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoopInput"
+      responses:
+        "200":
+          description: Loop mode updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerActionResponse"
+        "400":
+          description: Player not active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/guilds/{guildId}/shuffle:
+    post:
+      operationId: shuffleQueue
+      tags: [queue]
+      summary: Shuffle queue
+      description: Shuffle the current queue randomly
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      responses:
+        "200":
+          description: Queue shuffled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerActionResponse"
+        "400":
+          description: Queue empty
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/guilds/{guildId}/queue:
+    get:
+      operationId: getQueue
+      tags: [queue]
+      summary: Get the queue
+      description: Retrieve all tracks in the current playback queue
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      responses:
+        "200":
+          description: Queue contents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueueResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No active player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: clearQueue
+      tags: [queue]
+      summary: Clear queue
+      description: Remove all tracks from the queue (keeps current track playing)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      responses:
+        "200":
+          description: Queue cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerActionResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No active player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/guilds/{guildId}/now-playing:
+    get:
+      operationId: getNowPlaying
+      tags: [player]
+      summary: Get current track
+      description: Get information about the currently playing track
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      responses:
+        "200":
+          description: Currently playing track
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NowPlayingResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Nothing playing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/guilds/{guildId}/status:
+    get:
+      operationId: getPlayerStatus
+      tags: [player]
+      summary: Get player status
+      description: Get the full player state including volume, loop mode, queue size, and connection info
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      responses:
+        "200":
+          description: Player status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerStatus"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No active player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/guilds/{guildId}/disconnect:
+    delete:
+      operationId: disconnectPlayer
+      tags: [player]
+      summary: Disconnect player
+      description: Disconnect the bot from the voice channel and destroy the player
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GuildId"
+      responses:
+        "200":
+          description: Disconnected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerActionResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No active player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /music/nodes/status:
+    get:
+      operationId: getNodesStatus
+      tags: [health]
+      summary: Lavalink nodes status
+      description: Get connection status and stats for all connected Lavalink nodes
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Nodes status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NodesStatusResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  parameters:
+    GuildId:
+      name: guildId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[0-9]{17,20}$"
+      description: Discord Guild (server) ID
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +586,363 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        details:
+          type: ["string", "null"]
+      required:
+        - error
+
+    TrackInfo:
+      type: object
+      properties:
+        identifier:
+          type: string
+        title:
+          type: string
+        author:
+          type: string
+        duration:
+          type: integer
+          description: Duration in milliseconds
+        uri:
+          type: ["string", "null"]
+        artworkUrl:
+          type: ["string", "null"]
+        sourceName:
+          type: string
+        isStream:
+          type: boolean
+        isSeekable:
+          type: boolean
+      required:
+        - identifier
+        - title
+        - author
+        - duration
+        - sourceName
+        - isStream
+        - isSeekable
+
+    Track:
+      type: object
+      properties:
+        encoded:
+          type: string
+        info:
+          $ref: "#/components/schemas/TrackInfo"
+        requester:
+          type: ["string", "null"]
+          description: Discord user ID who requested this track
+      required:
+        - encoded
+        - info
+
+    SearchResult:
+      type: object
+      properties:
+        loadType:
+          type: string
+          enum: [search, track, playlist, empty, error]
+        tracks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Track"
+        playlistName:
+          type: ["string", "null"]
+        query:
+          type: string
+        source:
+          type: string
+        cached:
+          type: boolean
+      required:
+        - loadType
+        - tracks
+        - query
+        - source
+        - cached
+
+    PlayInput:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Search query, URL, or encoded track
+        channelId:
+          type: string
+          description: Discord voice channel ID to join
+        requesterId:
+          type: ["string", "null"]
+          description: Discord user ID of the requester
+        source:
+          type: string
+          enum: [youtube, soundcloud, spotify, ytsearch, scsearch]
+          default: ytsearch
+        addToQueue:
+          type: boolean
+          default: true
+          description: Add to queue if something is already playing
+      required:
+        - query
+        - channelId
+
+    PlayResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [playing, queued]
+        track:
+          $ref: "#/components/schemas/Track"
+        position:
+          type: ["integer", "null"]
+          description: Position in queue (1-indexed, null if now playing)
+        queueSize:
+          type: integer
+      required:
+        - status
+        - track
+        - queueSize
+
+    PlaylistInput:
+      type: object
+      properties:
+        url:
+          type: string
+          description: Playlist URL (YouTube, Spotify, SoundCloud)
+        channelId:
+          type: string
+          description: Discord voice channel ID to join
+        requesterId:
+          type: ["string", "null"]
+          description: Discord user ID of the requester
+        shuffle:
+          type: boolean
+          default: false
+          description: Shuffle the playlist before adding
+      required:
+        - url
+        - channelId
+
+    PlaylistResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [playing, queued]
+        playlistName:
+          type: string
+        tracksLoaded:
+          type: integer
+        queueSize:
+          type: integer
+        firstTrack:
+          $ref: "#/components/schemas/Track"
+      required:
+        - status
+        - playlistName
+        - tracksLoaded
+        - queueSize
+        - firstTrack
+
+    PlayerActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        guildId:
+          type: string
+      required:
+        - success
+        - message
+        - guildId
+
+    SkipResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        skippedTrack:
+          $ref: "#/components/schemas/Track"
+        nextTrack:
+          type: ["object", "null"]
+          $ref: "#/components/schemas/Track"
+        queueSize:
+          type: integer
+      required:
+        - success
+        - skippedTrack
+        - queueSize
+
+    VolumeInput:
+      type: object
+      properties:
+        volume:
+          type: integer
+          minimum: 0
+          maximum: 1000
+          description: Volume level (0-1000, 100 = normal)
+      required:
+        - volume
+
+    LoopInput:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [none, track, queue]
+          description: Loop mode
+      required:
+        - mode
+
+    NowPlayingResponse:
+      type: object
+      properties:
+        track:
+          $ref: "#/components/schemas/Track"
+        position:
+          type: integer
+          description: Current position in milliseconds
+        paused:
+          type: boolean
+        volume:
+          type: integer
+        loopMode:
+          type: string
+          enum: [none, track, queue]
+        queueSize:
+          type: integer
+      required:
+        - track
+        - position
+        - paused
+        - volume
+        - loopMode
+        - queueSize
+
+    PlayerStatus:
+      type: object
+      properties:
+        guildId:
+          type: string
+        connected:
+          type: boolean
+        channelId:
+          type: ["string", "null"]
+        playing:
+          type: boolean
+        paused:
+          type: boolean
+        volume:
+          type: integer
+        loopMode:
+          type: string
+          enum: [none, track, queue]
+        shuffleEnabled:
+          type: boolean
+        queueSize:
+          type: integer
+        currentTrack:
+          type: ["object", "null"]
+          $ref: "#/components/schemas/Track"
+        position:
+          type: integer
+          description: Current position in milliseconds
+        ping:
+          type: integer
+          description: Node ping in milliseconds
+      required:
+        - guildId
+        - connected
+        - playing
+        - paused
+        - volume
+        - loopMode
+        - shuffleEnabled
+        - queueSize
+        - position
+        - ping
+
+    QueueResponse:
+      type: object
+      properties:
+        guildId:
+          type: string
+        tracks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Track"
+        total:
+          type: integer
+        currentTrack:
+          type: ["object", "null"]
+          $ref: "#/components/schemas/Track"
+      required:
+        - guildId
+        - tracks
+        - total
+
+    LavalinkNodeStats:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+        connected:
+          type: boolean
+        players:
+          type: integer
+        playingPlayers:
+          type: integer
+        uptime:
+          type: integer
+        memoryUsed:
+          type: integer
+        memoryFree:
+          type: integer
+        cpuCores:
+          type: integer
+        cpuLoad:
+          type: number
+        ping:
+          type: integer
+      required:
+        - name
+        - url
+        - connected
+        - players
+        - playingPlayers
+        - uptime
+        - memoryUsed
+        - memoryFree
+        - cpuCores
+        - cpuLoad
+        - ping
+
+    NodesStatusResponse:
+      type: object
+      properties:
+        totalNodes:
+          type: integer
+        connectedNodes:
+          type: integer
+        totalPlayers:
+          type: integer
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/LavalinkNodeStats"
+      required:
+        - totalNodes
+        - connectedNodes
+        - totalPlayers
+        - nodes
