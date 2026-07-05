@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: lavalink
+    runtime: docker
+    dockerfilePath: ./lavalink/Dockerfile
+    dockerContext: ./lavalink
+    plan: starter
+    envVars:
+      - key: LAVALINK_SERVER_PASSWORD
+        sync: false
+      - key: SERVER_PORT
+        value: 2333
+
+  - type: web
+    name: discord-music-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: API_KEY
+        sync: false
+      - key: DISCORD_BOT_USER_ID
+        sync: false
+      - key: LAVALINK_HOST
+        fromService:
+          type: web
+          name: lavalink
+          property: host
+      - key: LAVALINK_PORT
+        value: 2333
+      - key: LAVALINK_PASSWORD
+        sync: false
+      - key: LAVALINK_SECURE
+        value: "true"
