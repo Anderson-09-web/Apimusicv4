@@ -63,7 +63,10 @@ router.get("/music/search", requireApiKey, requireBotSession, async (req, res, n
     }
 
     if (!client.connected || !client.sessionId) {
-      throw new LavalinkError("Lavalink node is not connected");
+      const ready = await client.waitUntilReady();
+      if (!ready) {
+        throw new LavalinkError("Lavalink node is not connected (it may be waking up, try again in a few seconds)");
+      }
     }
 
     const result = await client.loadTracks(identifier);

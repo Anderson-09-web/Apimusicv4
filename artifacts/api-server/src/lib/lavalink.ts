@@ -286,7 +286,6 @@ export class LavalinkClient extends EventEmitter {
       case "ready": {
         this.sessionId = msg["sessionId"] as string;
         const resumed = msg["resumed"] as boolean;
-        logger.info({ sessionId: this.sessionId, resumed }, "Lavalink session ready");
         this.emit("ready", this.sessionId, resumed);
         break;
       }

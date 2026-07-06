@@ -1,4 +1,7 @@
-FROM node:24-alpine AS base
+# Use Debian slim for the build stages so Rollup's glibc native binary resolves
+# correctly against the pnpm lockfile (generated on a glibc system).
+# The final runner stage stays on Alpine to keep the production image small.
+FROM node:24-slim AS base
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
 

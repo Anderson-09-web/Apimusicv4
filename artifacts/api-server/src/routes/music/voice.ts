@@ -50,7 +50,10 @@ router.post("/music/guilds/:guildId/voice", requireApiKey, requireBotSession, as
     const { client, playerManager } = req.lavaSession;
 
     if (!client.connected || !client.sessionId) {
-      throw new LavalinkError("Lavalink node is not connected");
+      const ready = await client.waitUntilReady();
+      if (!ready) {
+        throw new LavalinkError("Lavalink node is not connected (it may be waking up, try again in a few seconds)");
+      }
     }
 
     // Update player in Lavalink with Discord voice connection info
