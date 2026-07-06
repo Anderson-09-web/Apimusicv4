@@ -1,6 +1,6 @@
 FROM node:24-alpine AS base
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
 
 # ─── Install dependencies ─────────────────────────────────────────────────────
 FROM base AS deps
@@ -10,7 +10,10 @@ COPY lib/api-spec/package.json lib/api-spec/
 COPY lib/api-zod/package.json lib/api-zod/
 COPY lib/api-client-react/package.json lib/api-client-react/
 COPY lib/db/package.json lib/db/
+COPY scripts/package.json scripts/
 COPY artifacts/api-server/package.json artifacts/api-server/
+COPY artifacts/music-api-docs/package.json artifacts/music-api-docs/
+COPY artifacts/mockup-sandbox/package.json artifacts/mockup-sandbox/
 RUN pnpm install --frozen-lockfile
 
 # ─── Build ────────────────────────────────────────────────────────────────────
