@@ -3,8 +3,11 @@
  *
  * Manages in-memory queues, loop mode, shuffle, volume and delegates
  * playback commands to the Lavalink client.
+ *
+ * Each LavalinkSession gets its own PlayerManager instance so that
+ * different bots have fully isolated player state.
  */
-import { lavalinkClient, type LavalinkTrack } from "./lavalink.js";
+import type { LavalinkClient, LavalinkTrack } from "./lavalink.js";
 import { logger } from "./logger.js";
 
 export type LoopMode = "none" | "track" | "queue";
@@ -56,12 +59,12 @@ function lavalinkTrackToTrack(lav: LavalinkTrack, requester?: string | null): Tr
   };
 }
 
-class PlayerManager {
+export class PlayerManager {
   private players = new Map<string, GuildPlayerState>();
 
-  constructor() {
+  constructor(private readonly client: LavalinkClient) {
     // Auto-advance queue on track end
-    lavalinkClient.on("trackEnd", async (event) => {
+    client.on("trackEnd", async (event) => {
       const player = this.players.get(event.guildId);
       if (!player) return;
 
@@ -74,7 +77,7 @@ class PlayerManager {
       if (player.loopMode === "track") {
         // Re-play the same track
         try {
-          await lavalinkClient.updatePlayer(event.guildId, {
+          await client.updatePlayer(event.guildId, {
             track: { encoded: endedTrack.encoded },
           });
         } catch (err) {
@@ -99,7 +102,7 @@ class PlayerManager {
 
       player.currentTrack = nextTrack;
       try {
-        await lavalinkClient.updatePlayer(event.guildId, {
+        await client.updatePlayer(event.guildId, {
           track: { encoded: nextTrack.encoded },
         });
         logger.info(
@@ -112,7 +115,7 @@ class PlayerManager {
     });
 
     // Sync position from Lavalink
-    lavalinkClient.on("playerUpdate", (event) => {
+    client.on("playerUpdate", (event) => {
       const player = this.players.get(event.guildId);
       if (player) {
         player.position = event.state.position;
@@ -120,7 +123,7 @@ class PlayerManager {
       }
     });
 
-    lavalinkClient.on("trackStart", (event) => {
+    client.on("trackStart", (event) => {
       const player = this.players.get(event.guildId);
       if (player) {
         player.currentTrack = lavalinkTrackToTrack(event.track, player.currentTrack?.requester);
@@ -133,14 +136,14 @@ class PlayerManager {
       }
     });
 
-    lavalinkClient.on("trackException", (event) => {
+    client.on("trackException", (event) => {
       logger.error(
         { guildId: event.guildId, track: event.track.info.title, exception: event.exception },
         "Track exception",
       );
     });
 
-    lavalinkClient.on("trackStuck", (event) => {
+    client.on("trackStuck", (event) => {
       logger.warn(
         { guildId: event.guildId, track: event.track.info.title, threshold: event.thresholdMs },
         "Track stuck",
@@ -230,5 +233,3 @@ function shuffleArray<T>(arr: T[]): T[] {
   }
   return a;
 }
-
-export const playerManager = new PlayerManager();

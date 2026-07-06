@@ -151,6 +151,14 @@ export class LavalinkClient extends EventEmitter {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
 
+  /**
+   * @param botUserId Discord bot user ID sent in the Lavalink WebSocket handshake.
+   *                  Defaults to DISCORD_BOT_USER_ID from config.
+   */
+  constructor(private readonly botUserId: string = config.lavalink.botUserId) {
+    super();
+  }
+
   private get baseUrl(): string {
     const protocol = config.lavalink.secure ? "https" : "http";
     return `${protocol}://${config.lavalink.host}:${config.lavalink.port}`;
@@ -176,7 +184,7 @@ export class LavalinkClient extends EventEmitter {
 
     const headers: Record<string, string> = {
       Authorization: config.lavalink.password,
-      "User-Id": config.lavalink.botUserId,
+      "User-Id": this.botUserId,
       "Client-Name": config.lavalink.clientName,
     };
     if (this.sessionId) {
@@ -448,6 +456,3 @@ export class LavalinkClient extends EventEmitter {
   }
 }
 
-// ─── Singleton ───────────────────────────────────────────────────────────────
-
-export const lavalinkClient = new LavalinkClient();

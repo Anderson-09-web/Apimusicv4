@@ -1,6 +1,6 @@
 import app from "./app.js";
 import { logger } from "./lib/logger.js";
-import { lavalinkClient } from "./lib/lavalink.js";
+import { lavalinkPool } from "./lib/lavalinkPool.js";
 import { validateConfig, config } from "./config.js";
 
 // Validate config at startup (throws in production if required vars are missing)
@@ -11,30 +11,11 @@ if (!rawPort) throw new Error("PORT environment variable is required but was not
 const port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) throw new Error(`Invalid PORT value: "${rawPort}"`);
 
-// ─── Connect to Lavalink ──────────────────────────────────────────────────────
-
-lavalinkClient.on("ready", (sessionId, resumed) => {
-  logger.info({ sessionId, resumed }, "Lavalink session ready");
-});
-lavalinkClient.on("reconnecting", (attempt) => {
-  logger.warn({ attempt }, "Reconnecting to Lavalink...");
-});
-lavalinkClient.on("disconnected", (code, reason) => {
-  logger.warn({ code, reason }, "Lavalink disconnected");
-});
-lavalinkClient.on("stats", (stats) => {
-  logger.debug(
-    {
-      players: stats.players,
-      playingPlayers: stats.playingPlayers,
-      memUsedMb: Math.round(stats.memory.used / 1024 / 1024),
-    },
-    "Lavalink stats",
-  );
-});
-
-// Connect to Lavalink — non-blocking, API starts serving immediately
-lavalinkClient.connect();
+// ─── Initialize default Lavalink session ──────────────────────────────────────
+// Starts a session for DISCORD_BOT_USER_ID from config and connects immediately.
+// Additional sessions are created on demand when requests arrive with different
+// X-Bot-User-Id values (one session per Discord bot user ID).
+void lavalinkPool.default;
 
 // ─── Start HTTP Server ────────────────────────────────────────────────────────
 
@@ -52,13 +33,13 @@ function shutdown(signal: string) {
   logger.info({ signal }, "Shutting down gracefully...");
   server.close(() => {
     logger.info("HTTP server closed — all connections drained");
-    lavalinkClient.destroy();
+    lavalinkPool.destroyAll();
     process.exit(0);
   });
   // Force exit if drain takes too long
   setTimeout(() => {
     logger.warn("Graceful shutdown timeout — forcing exit");
-    lavalinkClient.destroy();
+    lavalinkPool.destroyAll();
     process.exit(1);
   }, 10_000).unref();
 }

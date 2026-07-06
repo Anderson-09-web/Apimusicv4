@@ -13,9 +13,9 @@
  * POST /api/music/guilds/:guildId/voice
  */
 import { Router, type IRouter } from "express";
-import { lavalinkClient } from "../../lib/lavalink.js";
-import { playerManager } from "../../lib/playerManager.js";
 import { BadRequestError, LavalinkError } from "../../lib/errors.js";
+import { requireApiKey } from "../../middlewares/auth.js";
+import { requireBotSession } from "../../middlewares/session.js";
 
 const router: IRouter = Router();
 
@@ -43,17 +43,18 @@ function validateVoiceUpdate(body: unknown): VoiceUpdateBody {
   };
 }
 
-router.post("/music/guilds/:guildId/voice", async (req, res, next) => {
+router.post("/music/guilds/:guildId/voice", requireApiKey, requireBotSession, async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const { sessionId, token, endpoint, channelId } = validateVoiceUpdate(req.body);
+    const { client, playerManager } = req.lavaSession;
 
-    if (!lavalinkClient.connected || !lavalinkClient.sessionId) {
+    if (!client.connected || !client.sessionId) {
       throw new LavalinkError("Lavalink node is not connected");
     }
 
     // Update player in Lavalink with Discord voice connection info
-    await lavalinkClient.updatePlayer(
+    await client.updatePlayer(
       guildId,
       {
         voice: { token, endpoint, sessionId },

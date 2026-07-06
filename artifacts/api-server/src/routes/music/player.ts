@@ -13,14 +13,15 @@
  * DELETE /api/music/guilds/:guildId/disconnect
  */
 import { Router, type IRouter } from "express";
-import { lavalinkClient, type LavalinkTrack } from "../../lib/lavalink.js";
-import { playerManager } from "../../lib/playerManager.js";
+import type { LavalinkTrack } from "../../lib/lavalink.js";
 import {
   BadRequestError,
   LavalinkError,
   NotFoundError,
   PlayerNotFoundError,
 } from "../../lib/errors.js";
+import { requireApiKey } from "../../middlewares/auth.js";
+import { requireBotSession } from "../../middlewares/session.js";
 import {
   PlayTrackBody,
   PlayPlaylistBody,
@@ -40,7 +41,7 @@ const SOURCE_PREFIXES: Record<string, string> = {
 
 // ─── POST /music/guilds/:guildId/play ────────────────────────────────────────
 
-router.post("/music/guilds/:guildId/play", async (req, res, next) => {
+router.post("/music/guilds/:guildId/play", requireApiKey, requireBotSession, async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const bodyParsed = PlayTrackBody.safeParse(req.body);
@@ -48,9 +49,10 @@ router.post("/music/guilds/:guildId/play", async (req, res, next) => {
       throw new BadRequestError("Invalid request body", bodyParsed.error.message);
     }
     const { query, channelId, requesterId, source, addToQueue = true } = bodyParsed.data;
+    const { client, playerManager } = req.lavaSession;
 
-    if (!lavalinkClient.connected || !lavalinkClient.sessionId) {
-      const ready = await lavalinkClient.waitUntilReady();
+    if (!client.connected || !client.sessionId) {
+      const ready = await client.waitUntilReady();
       if (!ready) {
         throw new LavalinkError(
           "Lavalink node is not connected (it may be waking up, try again in a few seconds)",
@@ -67,7 +69,7 @@ router.post("/music/guilds/:guildId/play", async (req, res, next) => {
       identifier = `${prefix}${query}`;
     }
 
-    const result = await lavalinkClient.loadTracks(identifier);
+    const result = await client.loadTracks(identifier);
 
     let track: LavalinkTrack | null = null;
 
@@ -100,7 +102,7 @@ router.post("/music/guilds/:guildId/play", async (req, res, next) => {
       player.currentTrack = apiTrack;
       status = "playing";
 
-      await lavalinkClient.updatePlayer(guildId, {
+      await client.updatePlayer(guildId, {
         track: { encoded: track.encoded },
         volume: player.volume,
       });
@@ -119,7 +121,7 @@ router.post("/music/guilds/:guildId/play", async (req, res, next) => {
 
 // ─── POST /music/guilds/:guildId/playlist ───────────────────────────────────
 
-router.post("/music/guilds/:guildId/playlist", async (req, res, next) => {
+router.post("/music/guilds/:guildId/playlist", requireApiKey, requireBotSession, async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const bodyParsed = PlayPlaylistBody.safeParse(req.body);
@@ -127,9 +129,10 @@ router.post("/music/guilds/:guildId/playlist", async (req, res, next) => {
       throw new BadRequestError("Invalid request body", bodyParsed.error.message);
     }
     const { url, channelId, requesterId, shuffle = false } = bodyParsed.data;
+    const { client, playerManager } = req.lavaSession;
 
-    if (!lavalinkClient.connected || !lavalinkClient.sessionId) {
-      const ready = await lavalinkClient.waitUntilReady();
+    if (!client.connected || !client.sessionId) {
+      const ready = await client.waitUntilReady();
       if (!ready) {
         throw new LavalinkError(
           "Lavalink node is not connected (it may be waking up, try again in a few seconds)",
@@ -137,7 +140,7 @@ router.post("/music/guilds/:guildId/playlist", async (req, res, next) => {
       }
     }
 
-    const result = await lavalinkClient.loadTracks(url);
+    const result = await client.loadTracks(url);
 
     if (result.loadType !== "playlist") {
       throw new BadRequestError("The provided URL is not a playlist");
@@ -164,7 +167,7 @@ router.post("/music/guilds/:guildId/playlist", async (req, res, next) => {
       player.currentTrack = firstTrack;
       playerManager.addManyToQueue(guildId, remaining, shuffle);
 
-      await lavalinkClient.updatePlayer(guildId, {
+      await client.updatePlayer(guildId, {
         track: { encoded: firstTrack.encoded },
         volume: player.volume,
       });
@@ -185,14 +188,15 @@ router.post("/music/guilds/:guildId/playlist", async (req, res, next) => {
 
 // ─── POST /music/guilds/:guildId/pause ──────────────────────────────────────
 
-router.post("/music/guilds/:guildId/pause", async (req, res, next) => {
+router.post("/music/guilds/:guildId/pause", requireApiKey, requireBotSession, async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
+    const { client, playerManager } = req.lavaSession;
     const player = playerManager.get(guildId);
     if (!player || !player.currentTrack) throw new PlayerNotFoundError(guildId);
 
     player.paused = true;
-    await lavalinkClient.updatePlayer(guildId, { paused: true });
+    await client.updatePlayer(guildId, { paused: true });
 
     res.json({ success: true, message: "Playback paused", guildId });
   } catch (err) {
@@ -202,14 +206,15 @@ router.post("/music/guilds/:guildId/pause", async (req, res, next) => {
 
 // ─── POST /music/guilds/:guildId/resume ─────────────────────────────────────
 
-router.post("/music/guilds/:guildId/resume", async (req, res, next) => {
+router.post("/music/guilds/:guildId/resume", requireApiKey, requireBotSession, async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
+    const { client, playerManager } = req.lavaSession;
     const player = playerManager.get(guildId);
     if (!player || !player.currentTrack) throw new PlayerNotFoundError(guildId);
 
     player.paused = false;
-    await lavalinkClient.updatePlayer(guildId, { paused: false });
+    await client.updatePlayer(guildId, { paused: false });
 
     res.json({ success: true, message: "Playback resumed", guildId });
   } catch (err) {
@@ -219,9 +224,10 @@ router.post("/music/guilds/:guildId/resume", async (req, res, next) => {
 
 // ─── POST /music/guilds/:guildId/skip ───────────────────────────────────────
 
-router.post("/music/guilds/:guildId/skip", async (req, res, next) => {
+router.post("/music/guilds/:guildId/skip", requireApiKey, requireBotSession, async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
+    const { client, playerManager } = req.lavaSession;
     const player = playerManager.get(guildId);
     if (!player || !player.currentTrack) throw new PlayerNotFoundError(guildId);
 
@@ -236,12 +242,12 @@ router.post("/music/guilds/:guildId/skip", async (req, res, next) => {
     player.position = 0;
 
     if (nextTrack) {
-      await lavalinkClient.updatePlayer(guildId, {
+      await client.updatePlayer(guildId, {
         track: { encoded: nextTrack.encoded },
       });
     } else {
       // Stop player — nothing left in queue
-      await lavalinkClient.updatePlayer(guildId, { track: { encoded: null } });
+      await client.updatePlayer(guildId, { track: { encoded: null } });
     }
 
     res.json({
@@ -257,9 +263,10 @@ router.post("/music/guilds/:guildId/skip", async (req, res, next) => {
 
 // ─── POST /music/guilds/:guildId/stop ───────────────────────────────────────
 
-router.post("/music/guilds/:guildId/stop", async (req, res, next) => {
+router.post("/music/guilds/:guildId/stop", requireApiKey, requireBotSession, async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
+    const { client, playerManager } = req.lavaSession;
     const player = playerManager.get(guildId);
     if (!player) throw new PlayerNotFoundError(guildId);
 
@@ -268,7 +275,7 @@ router.post("/music/guilds/:guildId/stop", async (req, res, next) => {
     player.paused = false;
     player.position = 0;
 
-    await lavalinkClient.updatePlayer(guildId, { track: { encoded: null } });
+    await client.updatePlayer(guildId, { track: { encoded: null } });
 
     res.json({ success: true, message: "Playback stopped and queue cleared", guildId });
   } catch (err) {
@@ -278,7 +285,7 @@ router.post("/music/guilds/:guildId/stop", async (req, res, next) => {
 
 // ─── PATCH /music/guilds/:guildId/volume ────────────────────────────────────
 
-router.patch("/music/guilds/:guildId/volume", async (req, res, next) => {
+router.patch("/music/guilds/:guildId/volume", requireApiKey, requireBotSession, async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const bodyParsed = SetVolumeBody.safeParse(req.body);
@@ -286,9 +293,10 @@ router.patch("/music/guilds/:guildId/volume", async (req, res, next) => {
       throw new BadRequestError("Invalid volume", bodyParsed.error.message);
     }
     const { volume } = bodyParsed.data;
+    const { client, playerManager } = req.lavaSession;
 
-    if (!lavalinkClient.connected || !lavalinkClient.sessionId) {
-      const ready = await lavalinkClient.waitUntilReady();
+    if (!client.connected || !client.sessionId) {
+      const ready = await client.waitUntilReady();
       if (!ready) {
         throw new LavalinkError(
           "Lavalink node is not connected (it may be waking up, try again in a few seconds)",
@@ -299,7 +307,7 @@ router.patch("/music/guilds/:guildId/volume", async (req, res, next) => {
     const player = playerManager.getOrCreate(guildId);
     player.volume = volume;
 
-    await lavalinkClient.updatePlayer(guildId, { volume });
+    await client.updatePlayer(guildId, { volume });
 
     res.json({ success: true, message: `Volume set to ${volume}`, guildId });
   } catch (err) {
@@ -309,7 +317,7 @@ router.patch("/music/guilds/:guildId/volume", async (req, res, next) => {
 
 // ─── PATCH /music/guilds/:guildId/loop ──────────────────────────────────────
 
-router.patch("/music/guilds/:guildId/loop", async (req, res, next) => {
+router.patch("/music/guilds/:guildId/loop", requireApiKey, requireBotSession, async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const bodyParsed = SetLoopBody.safeParse(req.body);
@@ -317,6 +325,7 @@ router.patch("/music/guilds/:guildId/loop", async (req, res, next) => {
       throw new BadRequestError("Invalid loop mode", bodyParsed.error.message);
     }
     const { mode } = bodyParsed.data;
+    const { playerManager } = req.lavaSession;
 
     const player = playerManager.getOrCreate(guildId);
     player.loopMode = mode as "none" | "track" | "queue";
@@ -329,9 +338,10 @@ router.patch("/music/guilds/:guildId/loop", async (req, res, next) => {
 
 // ─── GET /music/guilds/:guildId/now-playing ──────────────────────────────────
 
-router.get("/music/guilds/:guildId/now-playing", async (req, res, next) => {
+router.get("/music/guilds/:guildId/now-playing", requireApiKey, requireBotSession, async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
+    const { playerManager } = req.lavaSession;
     const player = playerManager.get(guildId);
     if (!player || !player.currentTrack) throw new NotFoundError("Nothing is currently playing");
 
@@ -350,16 +360,17 @@ router.get("/music/guilds/:guildId/now-playing", async (req, res, next) => {
 
 // ─── GET /music/guilds/:guildId/status ──────────────────────────────────────
 
-router.get("/music/guilds/:guildId/status", async (req, res, next) => {
+router.get("/music/guilds/:guildId/status", requireApiKey, requireBotSession, async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
+    const { client, playerManager } = req.lavaSession;
     const player = playerManager.get(guildId);
     if (!player) throw new PlayerNotFoundError(guildId);
 
     // Try to get live ping from Lavalink
     let ping = 0;
     try {
-      const lp = await lavalinkClient.getPlayer(guildId);
+      const lp = await client.getPlayer(guildId);
       ping = lp.state?.ping ?? 0;
     } catch {
       // not critical
@@ -386,13 +397,14 @@ router.get("/music/guilds/:guildId/status", async (req, res, next) => {
 
 // ─── DELETE /music/guilds/:guildId/disconnect ────────────────────────────────
 
-router.delete("/music/guilds/:guildId/disconnect", async (req, res, next) => {
+router.delete("/music/guilds/:guildId/disconnect", requireApiKey, requireBotSession, async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
+    const { client, playerManager } = req.lavaSession;
     const player = playerManager.get(guildId);
     if (!player) throw new PlayerNotFoundError(guildId);
 
-    await lavalinkClient.destroyPlayer(guildId);
+    await client.destroyPlayer(guildId);
     playerManager.remove(guildId);
 
     res.json({ success: true, message: "Player disconnected and destroyed", guildId });

@@ -3,9 +3,11 @@
  * GET /api/music/search
  */
 import { Router, type IRouter } from "express";
-import { lavalinkClient, type LavalinkTrack } from "../../lib/lavalink.js";
+import type { LavalinkTrack } from "../../lib/lavalink.js";
 import { cacheGet, cacheSet, searchCacheKey } from "../../lib/cache.js";
 import { BadRequestError, LavalinkError } from "../../lib/errors.js";
+import { requireApiKey } from "../../middlewares/auth.js";
+import { requireBotSession } from "../../middlewares/session.js";
 import { SearchTracksQueryParams } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -27,7 +29,7 @@ const SOURCE_PREFIXES: Record<string, string> = {
   spotify: "spsearch:",
 };
 
-router.get("/music/search", async (req, res, next) => {
+router.get("/music/search", requireApiKey, requireBotSession, async (req, res, next) => {
   try {
     const rawQuery = req.query["query"];
     if (!rawQuery || typeof rawQuery !== "string") {
@@ -48,6 +50,8 @@ router.get("/music/search", async (req, res, next) => {
       return;
     }
 
+    const { client } = req.lavaSession;
+
     // Build identifier for Lavalink
     let identifier: string;
     if (/^https?:\/\//i.test(rawQuery)) {
@@ -58,11 +62,11 @@ router.get("/music/search", async (req, res, next) => {
       identifier = `${prefix}${rawQuery}`;
     }
 
-    if (!lavalinkClient.connected || !lavalinkClient.sessionId) {
+    if (!client.connected || !client.sessionId) {
       throw new LavalinkError("Lavalink node is not connected");
     }
 
-    const result = await lavalinkClient.loadTracks(identifier);
+    const result = await client.loadTracks(identifier);
 
     let tracks: ReturnType<typeof trackToApiTrack>[] = [];
     let loadType: string = result.loadType;
