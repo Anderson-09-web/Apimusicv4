@@ -38,7 +38,7 @@ lavalinkClient.connect();
 
 // ─── Start HTTP Server ────────────────────────────────────────────────────────
 
-const server = app.listen(port, (err) => {
+const server = app.listen(port, "0.0.0.0", (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
