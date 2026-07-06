@@ -2,6 +2,7 @@ services:
   - type: web
     name: lavalink
     runtime: docker
+    region: oregon
     dockerfilePath: ./lavalink/Dockerfile
     dockerContext: ./lavalink
     plan: free
@@ -14,6 +15,7 @@ services:
   - type: web
     name: discord-music-api
     runtime: docker
+    region: oregon
     dockerfilePath: ./Dockerfile
     dockerContext: .
     plan: free
@@ -36,7 +38,7 @@ services:
       - key: LAVALINK_PASSWORD
         sync: false
       - key: LAVALINK_SECURE
-        value: "true"
+        value: "false"
 
   - type: web
     name: music-api-docs
