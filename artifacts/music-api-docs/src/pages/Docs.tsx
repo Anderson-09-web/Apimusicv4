@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CodeBlock } from '@/components/CodeBlock';
 import { EndpointCard } from '@/components/EndpointCard';
+import { GenerateKey } from '@/components/GenerateKey';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { FileCode2, Terminal, Shield, Workflow, Plug, AlertCircle, Settings } from 'lucide-react';
 
@@ -145,6 +146,9 @@ curl -X POST https://api.yourdomain.com/api/music/guilds/123456789/play \\
             <p className="text-muted-foreground mb-6">
               The API uses API keys to authenticate requests. Provide your API key in the <code className="text-primary font-mono bg-primary/10 px-1.5 py-0.5 rounded">X-API-Key</code> header of every request.
             </p>
+            <div className="mb-6">
+              <GenerateKey />
+            </div>
             <CodeBlock 
               language="js"
               title="Authentication Example"
