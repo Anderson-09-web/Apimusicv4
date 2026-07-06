@@ -1,25 +1,36 @@
 /**
  * Application configuration loaded from environment variables.
- * All sensitive values (API keys, passwords) should be set as env vars — never hardcoded.
+ * All sensitive values should be set as env vars — never hardcoded.
  */
+
+const DEV_INSECURE_SECRET = "dev-insecure-secret-do-not-use-in-production";
 
 export const config = {
   port: parseInt(process.env["PORT"] ?? "5000", 10),
   nodeEnv: process.env["NODE_ENV"] ?? "development",
 
-  /** API key required in X-API-Key header for all music endpoints */
-  apiKey: process.env["API_KEY"] ?? "",
+  /**
+   * HMAC secret used to sign and verify generated API keys.
+   * Required in production. Must be at least 32 characters.
+   */
+  apiKeySecret: process.env["API_KEY_SECRET"] ?? DEV_INSECURE_SECRET,
+
+  /**
+   * Password that grants access to generate a new API key via the docs.
+   * Defaults to the well-known password used in the documentation.
+   */
+  adminPassword: process.env["ADMIN_PASSWORD"] ?? "Blocker-X-Music",
 
   lavalink: {
     host: process.env["LAVALINK_HOST"] ?? "localhost",
     port: parseInt(process.env["LAVALINK_PORT"] ?? "2333", 10),
     password: process.env["LAVALINK_PASSWORD"] ?? "youshallnotpass",
     secure: process.env["LAVALINK_SECURE"] === "true",
-    /** Seconds between reconnect attempts */
+    /** Milliseconds between reconnect attempts */
     reconnectInterval: parseInt(process.env["LAVALINK_RECONNECT_INTERVAL"] ?? "5000", 10),
     /** Max reconnect attempts before giving up (0 = infinite) */
     reconnectMaxRetries: parseInt(process.env["LAVALINK_RECONNECT_MAX_RETRIES"] ?? "0", 10),
-    /** Discord bot user ID — required by Lavalink handshake */
+    /** Discord bot user ID required by Lavalink WebSocket handshake */
     botUserId: process.env["DISCORD_BOT_USER_ID"] ?? "1234567890",
     clientName: process.env["CLIENT_NAME"] ?? "discord-music-api/1.0",
   },
@@ -40,27 +51,25 @@ export const config = {
 } as const;
 
 /**
- * Validates critical config at startup — throws on missing required values.
+ * Validates critical config at startup.
+ * Throws in production if required values are missing.
+ * Warns in development to allow local testing without full config.
  */
 export function validateConfig(): void {
   const errors: string[] = [];
 
-  if (!config.apiKey || config.apiKey.length < 16) {
+  if (config.apiKeySecret === DEV_INSECURE_SECRET) {
     errors.push(
-      "API_KEY is not set or too short. Set a secure API key of at least 16 characters.",
-    );
-  }
-  if (!process.env["DISCORD_BOT_USER_ID"]) {
-    errors.push(
-      "DISCORD_BOT_USER_ID is not set. Set your Discord bot's user ID.",
+      "API_KEY_SECRET is not set. Set a secure random secret of at least 32 characters.",
     );
   }
 
   if (errors.length > 0) {
     if (config.nodeEnv === "production") {
-      throw new Error(`[config] Missing required configuration:\n${errors.map((e) => `  - ${e}`).join("\n")}`);
+      throw new Error(
+        `[config] Missing required configuration:\n${errors.map((e) => `  - ${e}`).join("\n")}`,
+      );
     } else {
-      // Warn in development so you can still start without full config
       errors.forEach((e) => console.warn(`[config] WARNING: ${e}`));
     }
   }

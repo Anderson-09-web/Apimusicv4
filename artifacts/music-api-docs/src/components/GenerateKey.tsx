@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyRound, Copy, Check, AlertTriangle } from 'lucide-react';
+import { KeyRound, Copy, Check, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -10,110 +10,120 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 
-const UNLOCK_CODE = 'Blocker-X-Music';
-const STORAGE_KEY = 'music-api-key-generated';
-const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
-
 export function GenerateKey() {
   const [open, setOpen] = useState(false);
-  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [revealed, setRevealed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ key: string; expiresAt: string } | null>(null);
   const [copied, setCopied] = useState(false);
-  const [alreadyUsed, setAlreadyUsed] = useState(
-    () => typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEY) === 'true',
-  );
 
   const handleOpen = () => {
     setError('');
-    setCode('');
-    setRevealed(false);
+    setPassword('');
+    setResult(null);
     setOpen(true);
   };
 
-  const handleSubmit = () => {
-    if (alreadyUsed) {
-      setError('Esta key ya fue generada una vez en este navegador.');
+  const handleGenerate = async () => {
+    if (!password.trim()) {
+      setError('Enter the access password.');
       return;
     }
-    if (code.trim() !== UNLOCK_CODE) {
-      setError('Código incorrecto.');
-      return;
-    }
-    if (!API_KEY) {
-      setError('No hay una API Key configurada en el servidor. Contactá al administrador.');
-      return;
-    }
-    setRevealed(true);
+    setLoading(true);
     setError('');
-    localStorage.setItem(STORAGE_KEY, 'true');
-    setAlreadyUsed(true);
+    try {
+      const res = await fetch('/api/keys/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: password.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? 'Failed to generate key. Try again.');
+        return;
+      }
+      setResult({ key: data.key, expiresAt: data.expiresAt });
+    } catch {
+      setError('Connection error. Make sure the API server is running.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCopy = async () => {
-    if (!API_KEY) return;
-    await navigator.clipboard.writeText(API_KEY);
+    if (!result) return;
+    await navigator.clipboard.writeText(result.key);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const expiryDate = result
+    ? new Date(result.expiresAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : null;
 
   return (
     <>
       <Button onClick={handleOpen} className="gap-2">
         <KeyRound className="w-4 h-4" />
-        Generate Key
+        Generate API Key
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Generar API Key</DialogTitle>
+            <DialogTitle>Generate API Key</DialogTitle>
             <DialogDescription>
-              {revealed
-                ? 'Guardá esta key ahora — no se va a volver a mostrar.'
-                : 'Ingresá el código de acceso para generar tu API Key.'}
+              {result
+                ? 'Your key is ready. Copy it now — it cannot be retrieved again.'
+                : 'Enter the access password to generate a unique API key.'}
             </DialogDescription>
           </DialogHeader>
 
-          {!revealed ? (
+          {!result ? (
             <div className="space-y-4">
               <Input
-                placeholder="Código de acceso"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                disabled={alreadyUsed}
+                type="password"
+                placeholder="Access password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !loading && handleGenerate()}
+                disabled={loading}
+                autoFocus
               />
               {error && (
                 <p className="text-sm text-destructive flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" /> {error}
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  {error}
                 </p>
               )}
-              {alreadyUsed && !error && (
-                <p className="text-sm text-muted-foreground">
-                  Ya generaste tu key desde este navegador. Si la perdiste, contactá al
-                  administrador de la API.
-                </p>
-              )}
-              <Button onClick={handleSubmit} disabled={alreadyUsed} className="w-full">
-                Generar
+              <Button onClick={handleGenerate} disabled={loading} className="w-full">
+                {loading ? 'Generating...' : 'Generate'}
               </Button>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="flex items-center gap-2 rounded-md border border-border bg-card p-3">
-                <code className="flex-1 text-sm font-mono text-primary break-all">
-                  {API_KEY}
+                <code className="flex-1 text-sm font-mono text-primary break-all select-all">
+                  {result.key}
                 </code>
-                <Button size="icon" variant="outline" onClick={handleCopy}>
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                <Button size="icon" variant="outline" onClick={handleCopy} title="Copy to clipboard">
+                  {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Copiala y guardala en un lugar seguro (por ejemplo en tu archivo .env como{' '}
-                <code className="text-primary">MUSIC_API_KEY</code>). No la vas a poder ver de
-                nuevo desde acá.
-              </p>
+              <div className="flex items-start gap-2 text-xs rounded-md border border-amber-500/20 bg-amber-500/5 p-3">
+                <Clock className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+                <div className="text-muted-foreground">
+                  <span className="text-amber-400 font-medium">Expires {expiryDate}.</span>{' '}
+                  Save this key in your <code className="text-primary">.env</code> as{' '}
+                  <code className="text-primary">MUSIC_API_KEY</code>. When it expires, return
+                  here to generate a new one.
+                </div>
+              </div>
             </div>
           )}
         </DialogContent>
