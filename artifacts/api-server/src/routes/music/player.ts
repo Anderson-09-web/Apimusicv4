@@ -51,7 +51,12 @@ router.post("/music/guilds/:guildId/play", requireApiKey, async (req, res, next)
     const { query, channelId, requesterId, source, addToQueue = true } = bodyParsed.data;
 
     if (!lavalinkClient.connected || !lavalinkClient.sessionId) {
-      throw new LavalinkError("Lavalink node is not connected");
+      const ready = await lavalinkClient.waitUntilReady();
+      if (!ready) {
+        throw new LavalinkError(
+          "Lavalink node is not connected (it may be waking up, try again in a few seconds)",
+        );
+      }
     }
 
     // Build identifier
@@ -125,7 +130,12 @@ router.post("/music/guilds/:guildId/playlist", requireApiKey, async (req, res, n
     const { url, channelId, requesterId, shuffle = false } = bodyParsed.data;
 
     if (!lavalinkClient.connected || !lavalinkClient.sessionId) {
-      throw new LavalinkError("Lavalink node is not connected");
+      const ready = await lavalinkClient.waitUntilReady();
+      if (!ready) {
+        throw new LavalinkError(
+          "Lavalink node is not connected (it may be waking up, try again in a few seconds)",
+        );
+      }
     }
 
     const result = await lavalinkClient.loadTracks(url);
@@ -279,7 +289,12 @@ router.patch("/music/guilds/:guildId/volume", requireApiKey, async (req, res, ne
     const { volume } = bodyParsed.data;
 
     if (!lavalinkClient.connected || !lavalinkClient.sessionId) {
-      throw new LavalinkError("Lavalink node is not connected");
+      const ready = await lavalinkClient.waitUntilReady();
+      if (!ready) {
+        throw new LavalinkError(
+          "Lavalink node is not connected (it may be waking up, try again in a few seconds)",
+        );
+      }
     }
 
     const player = playerManager.getOrCreate(guildId);

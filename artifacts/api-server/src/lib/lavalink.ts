@@ -216,6 +216,34 @@ export class LavalinkClient extends EventEmitter {
     };
   }
 
+  /**
+   * Wait until the client has an active session, up to `timeoutMs`.
+   * Useful to ride out brief reconnects (e.g. after the Lavalink host
+   * wakes up from a free-tier sleep) instead of failing immediately.
+   */
+  async waitUntilReady(timeoutMs = 10000): Promise<boolean> {
+    if (this.connected && this.sessionId) return true;
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const cleanup = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.off("ready", onReady);
+      };
+      const onReady = () => {
+        cleanup();
+        resolve(true);
+      };
+      const timer = setTimeout(() => {
+        cleanup();
+        resolve(false);
+      }, timeoutMs);
+      this.on("ready", onReady);
+    });
+  }
+
   /** Gracefully destroy the client. */
   destroy(): void {
     this.destroyed = true;
