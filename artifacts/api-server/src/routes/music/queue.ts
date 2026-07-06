@@ -7,13 +7,12 @@
 import { Router, type IRouter } from "express";
 import { playerManager } from "../../lib/playerManager.js";
 import { PlayerNotFoundError, BadRequestError } from "../../lib/errors.js";
-import { requireApiKey } from "../../middlewares/auth.js";
 
 const router: IRouter = Router();
 
 // ─── GET /music/guilds/:guildId/queue ───────────────────────────────────────
 
-router.get("/music/guilds/:guildId/queue", requireApiKey, (req, res, next) => {
+router.get("/music/guilds/:guildId/queue", (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const player = playerManager.get(guildId);
@@ -32,7 +31,7 @@ router.get("/music/guilds/:guildId/queue", requireApiKey, (req, res, next) => {
 
 // ─── DELETE /music/guilds/:guildId/queue ────────────────────────────────────
 
-router.delete("/music/guilds/:guildId/queue", requireApiKey, (req, res, next) => {
+router.delete("/music/guilds/:guildId/queue", (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const player = playerManager.get(guildId);
@@ -53,7 +52,7 @@ router.delete("/music/guilds/:guildId/queue", requireApiKey, (req, res, next) =>
 
 // ─── POST /music/guilds/:guildId/shuffle ────────────────────────────────────
 
-router.post("/music/guilds/:guildId/shuffle", requireApiKey, (req, res, next) => {
+router.post("/music/guilds/:guildId/shuffle", (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const player = playerManager.get(guildId);

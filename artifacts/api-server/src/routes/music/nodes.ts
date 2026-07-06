@@ -5,11 +5,10 @@
 import { Router, type IRouter } from "express";
 import { lavalinkClient } from "../../lib/lavalink.js";
 import { config } from "../../config.js";
-import { requireApiKey } from "../../middlewares/auth.js";
 
 const router: IRouter = Router();
 
-router.get("/music/nodes/status", requireApiKey, async (req, res, next) => {
+router.get("/music/nodes/status", async (req, res, next) => {
   try {
     let stats = lavalinkClient.lastStats;
     let ping = 0;

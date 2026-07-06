@@ -6,7 +6,6 @@ import { Router, type IRouter } from "express";
 import { lavalinkClient, type LavalinkTrack } from "../../lib/lavalink.js";
 import { cacheGet, cacheSet, searchCacheKey } from "../../lib/cache.js";
 import { BadRequestError, LavalinkError } from "../../lib/errors.js";
-import { requireApiKey } from "../../middlewares/auth.js";
 import { SearchTracksQueryParams } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -28,7 +27,7 @@ const SOURCE_PREFIXES: Record<string, string> = {
   spotify: "spsearch:",
 };
 
-router.get("/music/search", requireApiKey, async (req, res, next) => {
+router.get("/music/search", async (req, res, next) => {
   try {
     const rawQuery = req.query["query"];
     if (!rawQuery || typeof rawQuery !== "string") {

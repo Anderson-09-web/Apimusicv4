@@ -21,7 +21,6 @@ import {
   NotFoundError,
   PlayerNotFoundError,
 } from "../../lib/errors.js";
-import { requireApiKey } from "../../middlewares/auth.js";
 import {
   PlayTrackBody,
   PlayPlaylistBody,
@@ -41,7 +40,7 @@ const SOURCE_PREFIXES: Record<string, string> = {
 
 // ─── POST /music/guilds/:guildId/play ────────────────────────────────────────
 
-router.post("/music/guilds/:guildId/play", requireApiKey, async (req, res, next) => {
+router.post("/music/guilds/:guildId/play", async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const bodyParsed = PlayTrackBody.safeParse(req.body);
@@ -120,7 +119,7 @@ router.post("/music/guilds/:guildId/play", requireApiKey, async (req, res, next)
 
 // ─── POST /music/guilds/:guildId/playlist ───────────────────────────────────
 
-router.post("/music/guilds/:guildId/playlist", requireApiKey, async (req, res, next) => {
+router.post("/music/guilds/:guildId/playlist", async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const bodyParsed = PlayPlaylistBody.safeParse(req.body);
@@ -186,7 +185,7 @@ router.post("/music/guilds/:guildId/playlist", requireApiKey, async (req, res, n
 
 // ─── POST /music/guilds/:guildId/pause ──────────────────────────────────────
 
-router.post("/music/guilds/:guildId/pause", requireApiKey, async (req, res, next) => {
+router.post("/music/guilds/:guildId/pause", async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const player = playerManager.get(guildId);
@@ -203,7 +202,7 @@ router.post("/music/guilds/:guildId/pause", requireApiKey, async (req, res, next
 
 // ─── POST /music/guilds/:guildId/resume ─────────────────────────────────────
 
-router.post("/music/guilds/:guildId/resume", requireApiKey, async (req, res, next) => {
+router.post("/music/guilds/:guildId/resume", async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const player = playerManager.get(guildId);
@@ -220,7 +219,7 @@ router.post("/music/guilds/:guildId/resume", requireApiKey, async (req, res, nex
 
 // ─── POST /music/guilds/:guildId/skip ───────────────────────────────────────
 
-router.post("/music/guilds/:guildId/skip", requireApiKey, async (req, res, next) => {
+router.post("/music/guilds/:guildId/skip", async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const player = playerManager.get(guildId);
@@ -258,7 +257,7 @@ router.post("/music/guilds/:guildId/skip", requireApiKey, async (req, res, next)
 
 // ─── POST /music/guilds/:guildId/stop ───────────────────────────────────────
 
-router.post("/music/guilds/:guildId/stop", requireApiKey, async (req, res, next) => {
+router.post("/music/guilds/:guildId/stop", async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const player = playerManager.get(guildId);
@@ -279,7 +278,7 @@ router.post("/music/guilds/:guildId/stop", requireApiKey, async (req, res, next)
 
 // ─── PATCH /music/guilds/:guildId/volume ────────────────────────────────────
 
-router.patch("/music/guilds/:guildId/volume", requireApiKey, async (req, res, next) => {
+router.patch("/music/guilds/:guildId/volume", async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const bodyParsed = SetVolumeBody.safeParse(req.body);
@@ -310,7 +309,7 @@ router.patch("/music/guilds/:guildId/volume", requireApiKey, async (req, res, ne
 
 // ─── PATCH /music/guilds/:guildId/loop ──────────────────────────────────────
 
-router.patch("/music/guilds/:guildId/loop", requireApiKey, async (req, res, next) => {
+router.patch("/music/guilds/:guildId/loop", async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const bodyParsed = SetLoopBody.safeParse(req.body);
@@ -330,7 +329,7 @@ router.patch("/music/guilds/:guildId/loop", requireApiKey, async (req, res, next
 
 // ─── GET /music/guilds/:guildId/now-playing ──────────────────────────────────
 
-router.get("/music/guilds/:guildId/now-playing", requireApiKey, async (req, res, next) => {
+router.get("/music/guilds/:guildId/now-playing", async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const player = playerManager.get(guildId);
@@ -351,7 +350,7 @@ router.get("/music/guilds/:guildId/now-playing", requireApiKey, async (req, res,
 
 // ─── GET /music/guilds/:guildId/status ──────────────────────────────────────
 
-router.get("/music/guilds/:guildId/status", requireApiKey, async (req, res, next) => {
+router.get("/music/guilds/:guildId/status", async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const player = playerManager.get(guildId);
@@ -387,7 +386,7 @@ router.get("/music/guilds/:guildId/status", requireApiKey, async (req, res, next
 
 // ─── DELETE /music/guilds/:guildId/disconnect ────────────────────────────────
 
-router.delete("/music/guilds/:guildId/disconnect", requireApiKey, async (req, res, next) => {
+router.delete("/music/guilds/:guildId/disconnect", async (req, res, next) => {
   try {
     const { guildId } = req.params as { guildId: string };
     const player = playerManager.get(guildId);
